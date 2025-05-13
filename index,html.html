@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Verificador de Contas Bancárias</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css?family=Inter:400,600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', Arial, sans-serif;
+      background: #191b22;
+      color: #f8f8f8;
+      min-height: 100vh;
+    }
+    header {
+      background: #20222d;
+      color: #ffc107;
+      padding: 24px 16px 16px 16px;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.22);
+      z-index: 100;
+    }
+    main {
+      max-width: 1024px;
+      margin: 120px auto 40px auto;
+      padding: 0 18px 40px 18px;
+    }
+    .upload-area {
+      border: 2px dashed #ffc86b;
+      border-radius: 12px;
+      padding: 44px 22px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 30px;
+      color: #cfcfcf;
+      background: #21222c;
+      font-size: 1.1rem;
+      transition: background 0.3s, border 0.3s;
+    }
+    .upload-area:hover {
+      background-color: #242531;
+      border-color: #fff;
+      color: #fff;
+    }
+    select {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 7px 14px;
+      background: #242531;
+      color: #ffc107;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      margin-bottom: 14px;
+    }
+    .summary {
+      font-weight: 600;
+      margin-top: 18px;
+      background: #232436;
+      color: #fffbe7;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      text-align: left;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1c1e26;
+      margin-top: 20px;
+      font-size: 0.98rem;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 18px #0002;
+    }
+    th,td {
+      border: 1px solid #2c2c30;
+      padding: 11px 7px;
+      text-align: center;
+    }
+    th {
+      background-color: #232436;
+      color: #ffc86b;
+      font-weight: 600;
+      font-size: 1rem;
+      border-bottom: 2px solid #ffc86b;
+    }
+    .group-header {
+      background: #232436;
+      color: #ffc86b;
+      font-weight: 700;
+      font-size: 1.12rem;
+    }
+    tr:nth-child(even) td {
+      background: #22232a;
+    }
+    .changed {
+      background: #ffe08a !important;
+      color: #222 !important;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .buttons {
+      display: flex;
+      gap: 18px;
+      margin-top: 26px;
+      flex-wrap: wrap;
+    }
+    .buttons button {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(90deg, #ffc86b 85%, #ffe4ad 100%);
+      color: #232436;
+      border: none;
+      padding: 13px 24px;
+      cursor: pointer;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 2px 8px #0003;
+      transition: background 0.16s, box-shadow 0.18s;
+    }
+    .buttons button:hover {
+      background: linear-gradient(90deg, #fff7e1 80%, #ffc86b 100%);
+      color: #111;
+      box-shadow: 0 2px 18px #ffc86b55;
+    }
+    @media (max-width: 600px) {
+      header { font-size: 1.08rem; padding: 18px 4px 8px 4px;}
+      main { margin: 90px 0 40px 0; padding: 0 3vw 40px 3vw;}
+      table { font-size: 0.83rem; }
+      .buttons button { font-size: 0.94rem; padding: 10px 13px;}
+      select { font-size: 0.9rem; padding: 6px 10px;}
+    }
+    /* SCROLLBAR */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #42425a;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #222;
+    }
+    /* Filtros */
+    #filters {
+      background: #242531;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 10px;
+      color: #ffc86b;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    #filters label {
+      cursor: pointer;
+    }
+    #filters input[type="checkbox"] {
+      accent-color: #ffc86b;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <i class="fa fa-search"></i>
+    Verificador de Contas Bancárias
+  </header>
+  <main>
+    <div id="upload-area" class="upload-area">
+      <i class="fa fa-file-excel" style="color:#55ce8e; font-size:1.7rem;margin-bottom:9px;"></i><br>
+      <b>Arraste sua planilha aqui</b> <br> ou clique para selecionar
+      <div style="font-size:0.93em; color:#ffbf46; margin-top:12px;">Formatos aceitos: .xlsx, .xls</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx, .xls" style="display: none" />
+    <label id="sheetSelectorLabel" for="sheetSelector" style="display:none; color:#ffc86b; font-weight:600; margin:0 7px 0 0;">Aba:</label>
+    <select id="sheetSelector" style="display:none;"></select>
+    <div id="summary" class="summary"></div>
+    <!-- Filtros pelos ícones -->
+    <div id="filters" style="display:none; margin:12px 0 0 0;">
+      <label style="margin-right:24px; cursor:pointer;">
+        <input type="checkbox" id="filterWarning" checked>
+        <span style="font-size:1.2em;">⚠️ Alterados</span>
+      </label>
+      <label style="cursor:pointer;">
+        <input type="checkbox" id="filterOk" checked>
+        <span style="font-size:1.2em; color:#36e36c">✅ Sem Alteração</span>
+      </label>
+    </div>
+    <table id="outputTable" style="display: none;"></table>
+    <div class="buttons" id="buttonGroup" style="display:none;">
+      <button onclick="voltar()"><i class="fa fa-arrow-left"></i> Voltar</button>
+      <button onclick="exportChanges()"><i class="fa fa-download"></i> Exportar Alterações</button>
+    </div>
+    <div style="margin-top:28px;font-size:0.98em;color:#6a708f;max-width:600px;">
+      <i class="fa fa-info-circle"></i>
+      Dica: Use os filtros acima para exibir apenas linhas alteradas (<span style="color:#ffc86b;">⚠️</span>) ou sem alteração (<span style="color:#90ee90;">✅</span>).
+      A tabela destaca apenas os campos realmente alterados (fundo amarelo).
+    </div>
+  </main>
+<script>
+const fileInput = document.getElementById("fileInput");
+const outputTable = document.getElementById("outputTable");
+const summary = document.getElementById("summary");
+const sheetSelector = document.getElementById("sheetSelector");
+const sheetSelectorLabel = document.getElementById("sheetSelectorLabel");
+const uploadArea = document.getElementById("upload-area");
+const buttonGroup = document.getElementById("buttonGroup");
+const filtersDiv = document.getElementById("filters");
+const filterWarning = document.getElementById("filterWarning");
+const filterOk = document.getElementById("filterOk");
+let workbook;
+
+// Função para comparar só números
+function onlyNumbers(val) {
+  return (val ?? "").toString().replace(/\D/g, "");
+}
+
+function showUploadArea() {
+  uploadArea.style.display = "block";
+  fileInput.value = "";
+  sheetSelector.style.display = "none";
+  sheetSelectorLabel.style.display = "none";
+  summary.textContent = "";
+  outputTable.style.display = "none";
+  buttonGroup.style.display = "none";
+  filtersDiv.style.display = "none"; // esconde filtros também
+}
+
+uploadArea.addEventListener("click", () => fileInput.click());
+uploadArea.addEventListener("dragover", e => {
+  e.preventDefault();
+  uploadArea.style.backgroundColor = "#25273e";
+});
+uploadArea.addEventListener("dragleave", () => {
+  uploadArea.style.backgroundColor = "#21222c";
+});
+uploadArea.addEventListener("drop", e => {
+  e.preventDefault();
+  uploadArea.style.backgroundColor = "#21222c";
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+fileInput.addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (file) handleFile(file);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    workbook = XLSX.read(e.target.result, { type: "binary" });
+    // Selecionar abas
+    sheetSelector.innerHTML = "";
+    workbook.SheetNames.forEach((name, idx) => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      sheetSelector.appendChild(opt);
+    });
+    sheetSelector.style.display = "inline";
+    sheetSelectorLabel.style.display = "inline";
+    processSheet(workbook.Sheets[workbook.SheetNames[0]]);
+  };
+  reader.readAsBinaryString(file);
+}
+
+sheetSelector.onchange = function() {
+  processSheet(workbook.Sheets[sheetSelector.value]);
+};
+
+function processSheet(sheet) {
+  const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  outputTable.innerHTML = "";
+  if (!json.length) {
+    summary.textContent = "⚠️ Planilha vazia.";
+    outputTable.style.display = "none";
+    buttonGroup.style.display = "none";
+    filtersDiv.style.display = "none";
+    sheetSelector.style.display = "inline";
+    sheetSelectorLabel.style.display = "inline";
+    return;
+  }
+
+  // Nomes exatos das colunas obrigatórias
+  const reqCols = [
+      "Número",
+      "Favorecido Conta",
+      "Cad. Favorecido Conta",
+      "Favorecido Banco Código",
+      "Cad. Favorecido Banco",
+      "Código Titular da Conta",
+      "Cad. Favorecido Cod. Titular Conta"
+  ];
+
+  // Confere se todos os campos existem na planilha
+  const headerCheck = reqCols.filter(c => !(c in json[0]));
+  if (headerCheck.length) {
+    summary.textContent = "❌ Colunas obrigatórias faltando: " + headerCheck.join(', ');
+    outputTable.style.display = "none";
+    buttonGroup.style.display = "none";
+    filtersDiv.style.display = "none";
+    sheetSelector.style.display = "inline";
+    sheetSelectorLabel.style.display = "inline";
+    return;
+  }
+
+  // Cabeçalho agrupado (com colspans)
+  let thead = outputTable.createTHead();
+  let groupRow = thead.insertRow();
+
+  let thNum = document.createElement("th");
+  thNum.colSpan = 1;
+  thNum.className = "group-header";
+  thNum.innerText = "";
+  groupRow.appendChild(thNum);
+
+  let thConta = document.createElement("th");
+  thConta.colSpan = 3;
+  thConta.className = "group-header";
+  thConta.innerText = "Verificação de Conta Bancária";
+  groupRow.appendChild(thConta);
+
+  let thBanco = document.createElement("th");
+  thBanco.colSpan = 3;
+  thBanco.className = "group-header";
+  thBanco.innerText = "Verificação de Código de Banco";
+  groupRow.appendChild(thBanco);
+
+  let thCNPJ = document.createElement("th");
+  thCNPJ.colSpan = 3;
+  thCNPJ.className = "group-header";
+  thCNPJ.innerText = "Verificação de CNPJ/RUT";
+  groupRow.appendChild(thCNPJ);
+
+  // Cabeçalho detalhado
+  let headerRow = outputTable.insertRow();
+  [
+      "Número",
+      "Favorecido Conta",
+      "Cad. Favorecido Conta",
+      "Alteração Conta",
+      "Favorecido Banco Código",
+      "Cad. Favorecido Banco",
+      "Alteração Banco",
+      "CNPJ/RUT",
+      "Cad. CNPJ/RUT",
+      "Alteração CNPJ/RUT"
+  ].forEach(txt=> {
+    const th = document.createElement("th");
+    th.textContent = txt;
+    headerRow.appendChild(th);
+  });
+
+  // Corpo da tabela
+  let tbody = outputTable.createTBody();
+  let changedRows = 0;
+  let unchangedRows = 0;
+  json.forEach(row => {
+    const num     = row["Número"];
+    const oldAcc  = row["Favorecido Conta"];
+    const newAcc  = row["Cad. Favorecido Conta"];
+    const oldBank = row["Favorecido Banco Código"];
+    const newBank = row["Cad. Favorecido Banco"];
+    const oldCnpj = row["Código Titular da Conta"];
+    const newCnpj = row["Cad. Favorecido Cod. Titular Conta"];
+
+    // Só considera alteração se houver diferença nos números
+    const accChanged  = onlyNumbers(oldAcc)  !== onlyNumbers(newAcc);
+    const bankChanged = onlyNumbers(oldBank) !== onlyNumbers(newBank);
+    const cnpjChanged = onlyNumbers(oldCnpj) !== onlyNumbers(newCnpj);
+
+    let changed = false;
+
+    const tr = tbody.insertRow();
+
+    // Define se linha é "alterada" (⚠️) ou não (✅)
+    const isWarning = accChanged || bankChanged || cnpjChanged;
+    tr.dataset.warning = isWarning ? "1" : "0";
+
+    // Número
+    let td = tr.insertCell();
+    td.textContent = num;
+
+    // Conta Bancária
+    td = tr.insertCell();
+    td.textContent = oldAcc;
+    td = tr.insertCell();
+    td.textContent = newAcc;
+    if (accChanged) td.classList.add("changed");
+    td = tr.insertCell();
+    td.textContent = accChanged ? "⚠️" : "✅";
+    if (accChanged) changed = true;
+
+    // Banco
+    td = tr.insertCell();
+    td.textContent = oldBank;
+    td = tr.insertCell();
+    td.textContent = newBank;
+    if (bankChanged) td.classList.add("changed");
+    td = tr.insertCell();
+    td.textContent = bankChanged ? "⚠️" : "✅";
+    if (bankChanged) changed = true;
+
+    // CNPJ/RUT
+    td = tr.insertCell();
+    td.textContent = oldCnpj;
+    td = tr.insertCell();
+    td.textContent = newCnpj;
+    if (cnpjChanged) td.classList.add("changed");
+    td = tr.insertCell();
+    td.textContent = cnpjChanged ? "⚠️" : "✅";
+    if (cnpjChanged) changed = true;
+
+    if (changed) changedRows++;
+    else unchangedRows++;
+  });
+
+  summary.textContent = `Aba selecionada: ${changedRows} linhas com alteração (⚠️), ${unchangedRows} sem alteração (✅).`;
+  outputTable.style.display = "table";
+  buttonGroup.style.display = "flex";
+  sheetSelector.style.display = "inline";
+  sheetSelectorLabel.style.display = "inline";
+  filtersDiv.style.display = "block";
+  applyFilters();
+}
+
+// Filtro por ⚠️ / ✅
+function applyFilters() {
+  const showWarning = filterWarning.checked;
+  const showOk = filterOk.checked;
+  const rows = Array.from(outputTable.querySelectorAll('tbody tr'));
+  rows.forEach(tr => {
+    if (tr.dataset.warning === "1" && showWarning) {
+      tr.style.display = "";
+    } else if (tr.dataset.warning === "0" && showOk) {
+      tr.style.display = "";
+    } else {
+      tr.style.display = "none";
+    }
+  });
+}
+filterWarning.addEventListener('change', applyFilters);
+filterOk.addEventListener('change', applyFilters);
+
+function exportChanges() {
+  // Exporta apenas linhas visíveis e alteradas (⚠️)
+  const headerCells = outputTable.querySelectorAll("tr:nth-child(2) th");
+  const colHeaders = Array.from(headerCells).map(th => th.textContent);
+  const rows = Array.from(outputTable.tBodies[0].rows);
+
+  const filteredRows = rows.filter(row =>
+    row.style.display !== "none" && row.dataset.warning === "1"
+  ).map(row => {
+    const vals = Array.from(row.cells).map(td => td.textContent);
+    const obj = {};
+    colHeaders.forEach((k, i) => obj[k] = vals[i]);
+    return obj;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(filteredRows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Alterações");
+  XLSX.writeFile(wb, "alteracoes.xlsx");
+}
+
+function voltar() { showUploadArea(); }
+showUploadArea();
+</script>
+</body>
+</html>
